@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>POE 智能体最简网页（Python 版）</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;margin:0;background:#0f1115;color:#eaeef2;line-height:1.6}
+    .wrap{max-width:900px;margin:0 auto;padding:20px}
+    h1{font-size:22px;margin:10px 0 16px}
+    .card{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px;margin:12px 0}
+    label{display:block;margin:10px 0 6px;color:#b9c2cc}
+    textarea{width:100%;min-height:120px;border-radius:10px;padding:10px;background:#0b0d12;border:1px solid rgba(255,255,255,0.1);color:#eaeef2}
+    input[type="file"],select{width:100%}
+    button{display:inline-block;margin-top:12px;padding:10px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:#4f8eff;color:#fff;cursor:pointer}
+    button:disabled{opacity:.6;cursor:not-allowed}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media(max-width:800px){.row{grid-template-columns:1fr}}
+    pre{background:#0b0d12;border:1px solid rgba(255,255,255,0.1);padding:12px;border-radius:10px;overflow:auto;white-space:pre-wrap}
+    .hint{color:#9aa4af;font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>POE 智能体最简网页（Python 版）</h1>
+    <div class="card">
+      <div class="row">
+        <div>
+          <label>文本输入（可选）</label>
+          <textarea id="userText" placeholder="把你的问题或说明写在这里..."></textarea>
+        </div>
+        <div>
+          <label>上传图片（可选）</label>
+          <input id="imageFile" type="file" accept="image/*" />
+          <p class="hint">图片会作为上下文传给多模态模型。</p>
+        </div>
+      </div>
+      <label>选择模型</label>
+      <select id="model">
+        <option value="gpt-4o">gpt-4o</option>
+        <option value="gpt-4o-mini">gpt-4o-mini</option>
+        <option value="claude-3.5-sonnet">claude-3.5-sonnet</option>
+      </select>
+      <button id="sendBtn">提交</button>
+    </div>
+
+    <div class="card">
+      <label>返回结果</label>
+      <pre id="out">(等待调用)</pre>
+    </div>
+  </div>
+
+  <script>
+    async function fileToDataUrl(file){
+      return new Promise((resolve,reject)=>{
+        const fr = new FileReader();
+        fr.onerror = reject;
+        fr.onload = ()=> resolve(fr.result);
+        fr.readAsDataURL(file);
+      });
+    }
+
+    document.getElementById('sendBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('sendBtn');
+      const out = document.getElementById('out');
+      btn.disabled = true; out.textContent = '调用中...';
+
+      try{
+        const text = document.getElementById('userText').value.trim();
+        const model = document.getElementById('model').value;
+        const file = document.getElementById('imageFile').files[0];
+        let imageDataUrl = null;
+        if(file){ imageDataUrl = await fileToDataUrl(file); }
+
+        const res = await fetch('/api/ask', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ text, imageDataUrl, model })
+        });
+        const data = await res.json();
+        out.textContent = JSON.stringify(data, null, 2);
+      }catch(err){
+        out.textContent = '错误：' + err.message;
+      }finally{
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
