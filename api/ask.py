@@ -4,7 +4,7 @@ import openai
 
 # 初始化 Poe SDK 客户端
 client = openai.OpenAI(
-    api_key=os.getenv("POE_API_KEY"),   # 需要在 Vercel/服务器里配置环境变量
+    api_key=os.getenv("POE_API_KEY"),   # 在 Vercel/服务器里配置
     base_url="https://api.poe.com/v1",
 )
 
@@ -31,18 +31,11 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             return self._send(400, {"error": "Invalid JSON body"})
 
-        # 获取模型，前端传的优先，其次环境变量，最后一个默认
+        # 默认模型：可以被前端传入覆盖
         model = payload.get("model") or os.getenv("POE_MODEL") or "sml-fanhuati.XUANTI"
-
-        messages = payload.get("messages")
-        if not messages:
-            text = (payload.get("text") or "").strip()
-            if not text:
-                return self._send(400, {"error": "Missing 'messages' or 'text'"})
-            messages = [{"role": "user", "content": text}]
+        messages = payload.get("messages") or [{"role": "user", "content": "Hello world"}]
 
         try:
-            # 调用 Poe 官方 SDK
             chat = client.chat.completions.create(
                 model=model,
                 messages=messages,
