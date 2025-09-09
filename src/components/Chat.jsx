@@ -150,9 +150,15 @@ export default function Chat(){
               <div className="avatar">{m.role==='user'?'🧑':'🤖'}</div>
               <div className="bubble">
                 <div className="meta">{m.role==='user'?'你':'助手'}</div>
-                {Array.isArray(m.content)
-                  ? <div>{m.content.find(p=>p.type==='text')?.text || ''}{m.content.find(p=>p.type==='image_url')?.image_url?.url && <img src={m.content.find(p= />p.type==='image_url').image_url.url} alt="" />}</div>
-                  : <div>{m.content}</div>}
+                {Array.isArray(m.content) ? (
+                  <div>
+                    {m.content.map((p, idx) => {
+                      if (p.type === 'text') return <span key={idx}>{p.text}</span>;
+                      if (p.type === 'image_url' && p.image_url?.url) return <img key={idx} src={p.image_url.url} alt="" />;
+                      return null;
+                    })}
+                  </div>
+                ) : <div>{m.content}</div>}
               </div>
             </div>
           ))}
