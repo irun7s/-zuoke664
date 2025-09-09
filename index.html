@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>POE 智能体最简网页（Python 版 · 最终）</title>
+  <title>聚狮系统</title>
   <style>
     body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;margin:0;background:#0f1115;color:#eaeef2;line-height:1.6}
     .wrap{max-width:900px;margin:0 auto;padding:20px}
@@ -24,7 +24,7 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>POE 智能体最简网页（Python 版 · 最终）</h1>
+    <h1>聚狮系统</h1>
     <div class="card">
       <div class="row">
         <div>
@@ -37,12 +37,6 @@
           <p class="hint">图片会作为上下文传给多模态模型。</p>
         </div>
       </div>
-      <label>选择模型</label>
-      <select id="model">
-        <option value="gpt-4o">gpt-4o</option>
-        <option value="gpt-4o-mini">gpt-4o-mini</option>
-        <option value="claude-3.5-sonnet">claude-3.5-sonnet</option>
-      </select>
       <div class="toolbar">
         <button id="sendBtn">提交（带上下文继续聊）</button>
         <button id="resetBtn" style="background:#ef4444">重置对话</button>
@@ -116,7 +110,7 @@
         const res = await fetch('/api/ask', {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ model, messages })
+          body: JSON.stringify({ messages })
         });
         const data = await res.json();
         out.textContent = JSON.stringify(data, null, 2);
