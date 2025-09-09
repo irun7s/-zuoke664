@@ -151,7 +151,7 @@ export default function Chat(){
               <div className="bubble">
                 <div className="meta">{m.role==='user'?'你':'助手'}</div>
                 {Array.isArray(m.content)
-                  ? <div>{m.content.find(p=>p.type==='text')?.text || ''}{m.content.find(p=>p.type==='image_url')?.image_url?.url && <img src={m.content.find(p=>p.type==='image_url').image_url.url} alt="" />}</div>
+                  ? <div>{m.content.find(p=>p.type==='text')?.text || ''}{m.content.find(p=>p.type==='image_url')?.image_url?.url && <img src={m.content.find(p= />p.type==='image_url').image_url.url} alt="" />}</div>
                   : <div>{m.content}</div>}
               </div>
             </div>
