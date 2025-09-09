@@ -1,7 +1,12 @@
 from http.server import BaseHTTPRequestHandler
-import os, json, urllib.request, urllib.error
+import os, json
+import openai
 
-POE_URL = "https://api.poe.com/v1/chat/completions"
+# 初始化 Poe SDK 客户端
+client = openai.OpenAI(
+    api_key=os.getenv("POE_API_KEY"),   # 需要在 Vercel/服务器里配置环境变量
+    base_url="https://api.poe.com/v1",
+)
 
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
@@ -18,59 +23,32 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data, ensure_ascii=False).encode("utf-8"))
 
-    def do_GET(self):
-        return self._send(405, {"error": "Only POST allowed"})
-
     def do_POST(self):
-        api_key = os.environ.get("POE_API_KEY")
-        if not api_key:
-            return self._send(500, {"error": "Missing POE_API_KEY"})
-
         try:
             length = int(self.headers.get("content-length", 0) or 0)
-            body = self.rfile.read(length) if length > 0 else b"{}"
-            payload = json.loads(body.decode("utf-8"))
+            body = self.rfile.read(length).decode("utf-8") if length > 0 else "{}"
+            payload = json.loads(body)
         except Exception:
             return self._send(400, {"error": "Invalid JSON body"})
 
+        # 获取模型，前端传的优先，其次环境变量，最后一个默认
+        model = payload.get("model") or os.getenv("POE_MODEL") or "sml-fanhuati.XUANTI"
+
         messages = payload.get("messages")
-        text = (payload.get("text") or "").strip()
-        image_data_url = payload.get("imageDataUrl")
-
         if not messages:
-            if not text and not image_data_url:
-                return self._send(400, {"error": "缺少文本或图片"})
-            if image_data_url:
-                parts = []
-                if text: parts.append({"type":"text","text":text})
-                parts.append({"type":"image_url","image_url":{"url": image_data_url}})
-                messages = [
-                    {"role":"system","content": "用中文回答，直接给结论和步骤；不要自我介绍。如果用户问“你是谁/你是什么模型”，请简短回应“我是你的智能助手，专注解决问题”，然后继续就用户当前需求给出下一步建议。"},
-                    {"role":"user","content": parts}
-                ]
-            else:
-                messages = [
-                    {"role":"system","content": "用中文回答，直接给结论和步骤；不要自我介绍。如果用户问“你是谁/你是什么模型”，请简短回应“我是你的智能助手，专注解决问题”，然后继续就用户当前需求给出下一步建议。"},
-                    {"role":"user","content": text}
-                ]
-
-        req_body = { "messages": messages, "temperature": 0.4 }
-
-        data = json.dumps(req_body).encode("utf-8")
-        req = urllib.request.Request(POE_URL, data=data, method="POST")
-        req.add_header("Authorization", f"Bearer {api_key}")
-        req.add_header("Content-Type", "application/json")
+            text = (payload.get("text") or "").strip()
+            if not text:
+                return self._send(400, {"error": "Missing 'messages' or 'text'"})
+            messages = [{"role": "user", "content": text}]
 
         try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                obj = json.loads(resp.read().decode("utf-8"))
-                return self._send(resp.getcode(), obj)
-        except urllib.error.HTTPError as e:
-            msg = e.read().decode("utf-8") if e.fp else ""
-            try:
-                obj = json.loads(msg) if msg else {"error": e.reason}
-            except Exception:
-                obj = {"error": e.reason}
-            return self._send(e.code, obj)
+            # 调用 Poe 官方 SDK
+            chat = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=payload.get("temperature", 0.4),
+                max_tokens=payload.get("max_tokens", 1024),
+            )
+            return self._send(200, chat.to_dict())
         except Exception as e:
             return self._send(500, {"error": str(e)})
