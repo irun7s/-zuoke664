@@ -3,12 +3,6 @@ import os, json, urllib.request, urllib.error
 
 POE_URL = "https://api.poe.com/v1/chat/completions"
 
-SYSTEM_PROMPT = (
-    "用中文回答，直接给结论和步骤。"
-    "禁止自我介绍、禁止复述身份或原则。"
-    "如果信息不足，先用1句提问澄清。"
-)
-
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
@@ -25,7 +19,6 @@ class handler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(data, ensure_ascii=False).encode("utf-8"))
 
     def do_GET(self):
-        # 明确提示只允许 POST，便于 /api/ask 的自检
         return self._send(405, {"error": "Only POST allowed"})
 
     def do_POST(self):
@@ -40,7 +33,6 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             return self._send(400, {"error": "Invalid JSON body"})
 
-        # 允许两种形态：直接 messages，或 text + imageDataUrl
         messages = payload.get("messages")
         text = (payload.get("text") or "").strip()
         image_data_url = payload.get("imageDataUrl")
@@ -50,17 +42,16 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(400, {"error": "缺少文本或图片"})
             if image_data_url:
                 parts = []
-                if text:
-                    parts.append({"type": "text", "text": text})
-                parts.append({"type": "image_url", "image_url": {"url": image_data_url}})
+                if text: parts.append({"type":"text","text":text})
+                parts.append({"type":"image_url","image_url":{"url": image_data_url}})
                 messages = [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": parts},
+                    {"role":"system","content": "用中文回答，禁止自我介绍，直接给结论和步骤；若信息不足先用1句澄清。"},
+                    {"role":"user","content": parts}
                 ]
             else:
                 messages = [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": text},
+                    {"role":"system","content": "用中文回答，禁止自我介绍，直接给结论和步骤；若信息不足先用1句澄清。"},
+                    {"role":"user","content": text}
                 ]
 
         req_body = {
@@ -75,16 +66,14 @@ class handler(BaseHTTPRequestHandler):
 
         try:
             with urllib.request.urlopen(req, timeout=60) as resp:
-                resp_data = resp.read().decode("utf-8")
-                obj = json.loads(resp_data)
+                obj = json.loads(resp.read().decode("utf-8"))
                 return self._send(resp.getcode(), obj)
         except urllib.error.HTTPError as e:
             msg = e.read().decode("utf-8") if e.fp else ""
             try:
                 obj = json.loads(msg) if msg else {"error": e.reason}
             except Exception:
-                obj = {"error": msg or e.reason}
+                obj = {"error": e.reason}
             return self._send(e.code, obj)
         except Exception as e:
             return self._send(500, {"error": str(e)})
-

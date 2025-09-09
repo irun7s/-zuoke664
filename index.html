@@ -3,131 +3,168 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>聚狮系统</title>
+  <title>多智能体聊天 · Poe API</title>
   <style>
-    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;margin:0;background:#0f1115;color:#eaeef2;line-height:1.6}
-    .wrap{max-width:900px;margin:0 auto;padding:20px}
-    h1{font-size:22px;margin:10px 0 16px}
-    .card{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px;margin:12px 0}
-    label{display:block;margin:10px 0 6px;color:#b9c2cc}
-    textarea{width:100%;min-height:120px;border-radius:10px;padding:10px;background:#0b0d12;border:1px solid rgba(255,255,255,0.1);color:#eaeef2}
-    input[type="file"],select,button{width:100%}
-    button{margin-top:12px;padding:10px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:#4f8eff;color:#fff;cursor:pointer}
-    button:disabled{opacity:.6;cursor:not-allowed}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    @media(max-width:800px){.row{grid-template-columns:1fr}}
-    pre{background:#0b0d12;border:1px solid rgba(255,255,255,0.1);padding:12px;border-radius:10px;overflow:auto;white-space:pre-wrap}
-    .hint{color:#9aa4af;font-size:13px}
-    .reply{white-space:pre-wrap;background:#0b0d12;border:1px solid rgba(255,255,255,0.1);padding:12px;border-radius:10px;min-height:60px}
-    .toolbar{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    :root{ --bg:#0f1115; --panel:#141821; --border:#232a36; --text:#e6edf3; --muted:#9aa4af; --primary:#4f8eff; --accent:#1f6feb; }
+    *{box-sizing:border-box}
+    html,body{height:100%;}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;line-height:1.5}
+    .app{display:flex;flex-direction:column;height:100%;}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--panel);position:sticky;top:0;z-index:10}
+    .brand{font-weight:600}
+    .bots{display:flex;gap:8px;flex-wrap:wrap}
+    .bot{padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#0b0d12;color:var(--text);cursor:pointer;user-select:none;white-space:nowrap}
+    .bot.active{background:var(--primary);border-color:var(--primary);color:#fff}
+    .chat{flex:1;overflow:auto;padding:16px;scroll-behavior:smooth}
+    .bubble{max-width:80%;margin:6px 0;padding:10px 12px;border-radius:14px;border:1px solid var(--border);background:var(--panel);word-wrap:break-word;white-space:pre-wrap}
+    .me{margin-left:auto;background:#1a2333}
+    .assistant{margin-right:auto;background:#101826}
+    .thumb{display:inline-block;margin-top:6px;border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+    .thumb img{display:block;max-width:180px;height:auto}
+    .composer{position:sticky;bottom:0;background:linear-gradient(180deg,transparent,rgba(15,17,21,.85) 20%, var(--bg) 40%);padding:12px 12px 14px;border-top:1px solid var(--border)}
+    .composer-inner{display:flex;gap:10px;align-items:flex-end;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:10px}
+    .textarea{flex:1;min-height:44px;max-height:160px;overflow:auto;border:none;resize:none;outline:none;background:transparent;color:var(--text);font:inherit;line-height:1.5}
+    .actions{display:flex;gap:8px;align-items:center}
+    .file{display:none}
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--primary);color:#fff;cursor:pointer;white-space:nowrap}
+    .icon{font-style:normal;font-weight:600}
+    .muted{color:var(--muted);font-size:12px;margin-top:6px}
+    @media (max-width:640px){ .bubble{max-width:88%;} .topbar{flex-wrap:wrap;gap:8px} }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>聚狮系统</h1>
-    <div class="card">
-      <div class="row">
-        <div>
-          <label>文本输入（可选）</label>
-          <textarea id="userText" placeholder="把你的问题或说明写在这里..."></textarea>
-        </div>
-        <div>
-          <label>上传图片（可选）</label>
-          <input id="imageFile" type="file" accept="image/*" />
-          <p class="hint">图片会作为上下文传给多模态模型。</p>
+  <div class="app">
+    <div class="topbar">
+      <div class="brand">多智能体聊天</div>
+      <div class="bots" id="bots"></div>
+    </div>
+
+    <div id="chat" class="chat" aria-live="polite"></div>
+
+    <div class="composer">
+      <div class="composer-inner">
+        <textarea id="text" class="textarea" placeholder="输入消息，Shift+Enter 换行"></textarea>
+        <div class="actions">
+          <label class="btn" for="file"><span class="icon">🖼</span> 图片</label>
+          <input id="file" class="file" type="file" accept="image/*">
+          <button id="send" class="btn"><span class="icon">➤</span> 发送</button>
         </div>
       </div>
-      <div class="toolbar">
-        <button id="sendBtn">提交（带上下文继续聊）</button>
-        <button id="resetBtn" style="background:#ef4444">重置对话</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <label>助手回复</label>
-      <div id="reply" class="reply">(等待调用)</div>
-    </div>
-
-    <div class="card">
-      <label>原始返回 JSON（排障用）</label>
-      <pre id="out">(等待调用)</pre>
-    </div>
-
-    <div class="card">
-      <label>自检链接</label>
-      <p><a href="/api/ping" target="_blank">/api/ping</a> 应返回 <code>{"ok": true}</code>；<a href="/api/ask" target="_blank">/api/ask</a> 用 GET 会 405。</p>
+      <div class="muted">提示：每个智能体各自维护上下文。清空浏览器缓存可重置。</div>
     </div>
   </div>
 
   <script>
-    const SYSTEM = "用中文回答，禁止自我介绍，直接给结论和步骤；若信息不足先用1句澄清。";
-    let messages = JSON.parse(localStorage.getItem('poe_messages') || '[]');
+    const API_BASE = '/api';
+    const BOT_LIST = [
+      { id: 'writer', name: '写作助手' },
+      { id: 'analyst', name: '数据分析' },
+      { id: 'coach',  name: '教练顾问' }
+    ];
+    let currentBot = localStorage.getItem('current_bot') || BOT_LIST[0].id;
+    const storeKey = bot => `chat_${bot}`;
+    const qs = sel => document.querySelector(sel);
+    const el = (tag, cls) => { const x=document.createElement(tag); if(cls) x.className=cls; return x; };
 
-    function save(){ localStorage.setItem('poe_messages', JSON.stringify(messages)); }
-    function clearMessages(){ messages = []; save(); }
+    function loadHistory(bot){
+      try { return JSON.parse(localStorage.getItem(storeKey(bot)) || '[]'); }
+      catch{ return []; }
+    }
+    function saveHistory(bot, msgs){
+      localStorage.setItem(storeKey(bot), JSON.stringify(msgs));
+    }
+    function toDataUrl(file){
+      return new Promise((ok,no)=>{const r=new FileReader();r.onerror=no;r.onload=()=>ok(r.result);r.readAsDataURL(file);});
+    }
 
-    async function fileToDataUrl(file){
-      return new Promise((resolve,reject)=>{
-        const fr = new FileReader();
-        fr.onerror = reject;
-        fr.onload = ()=> resolve(fr.result);
-        fr.readAsDataURL(file);
+    const botsWrap = qs('#bots');
+    function renderBots(){
+      botsWrap.innerHTML='';
+      BOT_LIST.forEach(b=>{
+        const btn = el('button','bot'+(b.id===currentBot?' active':''));
+        btn.textContent = b.name;
+        btn.onclick = () => { currentBot=b.id; localStorage.setItem('current_bot', currentBot); renderBots(); renderChat(); };
+        botsWrap.appendChild(btn);
       });
     }
 
-    document.getElementById('resetBtn').onclick = () => {
-      clearMessages();
-      document.getElementById('reply').textContent = '(已清空对话)';
-      document.getElementById('out').textContent = '(等待调用)';
-    };
+    const chat = qs('#chat');
+    function bubble(role, content, imageUrl=null){
+      const wrap = el('div','bubble '+(role==='user'?'me':'assistant'));
+      if (typeof content === 'string') wrap.textContent = content;
+      else wrap.textContent = JSON.stringify(content);
+      if (imageUrl){
+        const th = el('div','thumb'); const img = new Image(); img.src=imageUrl; th.appendChild(img); wrap.appendChild(th);
+      }
+      chat.appendChild(wrap);
+      chat.scrollTop = chat.scrollHeight;
+    }
+    function renderChat(){
+      chat.innerHTML='';
+      const msgs = loadHistory(currentBot);
+      msgs.forEach(m=>{
+        if (m.role==='user'){
+          const hasImg = Array.isArray(m.content) && m.content.some(p=>p.type==='image_url');
+          const textPart = Array.isArray(m.content) ? (m.content.find(p=>p.type==='text')?.text || '') : (m.content||'');
+          const imgPart = hasImg ? (m.content.find(p=>p.type==='image_url')?.image_url?.url) : null;
+          bubble('user', textPart, imgPart);
+        } else if (m.role==='assistant'){
+          bubble('assistant', typeof m.content==='string'? m.content : JSON.stringify(m.content));
+        }
+      });
+    }
 
-    document.getElementById('sendBtn').addEventListener('click', async () => {
-      const btn = document.getElementById('sendBtn');
-      const out = document.getElementById('out');
-      const reply = document.getElementById('reply');
-      btn.disabled = true; out.textContent = '调用中...'; reply.textContent = '调用中...';
+    async function send(){
+      const textarea = qs('#text');
+      const fileInput = qs('#file');
+      const text = textarea.value.trim();
+      const file = fileInput.files[0];
+
+      if (!text && !file) { textarea.focus(); return; }
+
+      let history = loadHistory(currentBot);
+      if (!history.length){
+        history.push({ role:'system', content: '用中文回答，禁止自我介绍，直接给结论和步骤；若信息不足先用1句澄清。' });
+      }
+
+      let userContent = text;
+      let imageDataUrl = null;
+      if (file){
+        imageDataUrl = await toDataUrl(file);
+        userContent = [{ type:'text', text: text || '看图说话' }, { type:'image_url', image_url:{ url:imageDataUrl } }];
+      }
+
+      history.push({ role:'user', content: userContent });
+      saveHistory(currentBot, history);
+      bubble('user', text || '(图片)', imageDataUrl);
+      textarea.value=''; fileInput.value='';
 
       try{
-        const text = document.getElementById('userText').value.trim();
-        const model = document.getElementById('model').value;
-        const file = document.getElementById('imageFile').files[0];
-        if(!text && !file){ alert('至少写点字或选张图'); btn.disabled=false; return; }
-
-        // 首条加 system
-        if (!messages.length) messages.push({ role: 'system', content: SYSTEM });
-
-        let userContent = text;
-        if(file){
-          const img = await fileToDataUrl(file);
-          userContent = [
-            ...(text ? [{ type:'text', text }] : []),
-            { type:'image_url', image_url:{ url: img } }
-          ];
-        }
-        messages.push({ role:'user', content: userContent });
-        save();
-
-        const res = await fetch('/api/ask', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ messages })
+        const res = await fetch(API_BASE + '/ask', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ messages: history })
         });
         const data = await res.json();
-        out.textContent = JSON.stringify(data, null, 2);
-
-        const msg = data.choices && data.choices[0] && data.choices[0].message;
-        const content = msg && msg.content;
-        const textResp = typeof content === 'string' ? content : JSON.stringify(content);
-        reply.textContent = textResp || '(空响应)';
-        if (msg) { messages.push(msg); save(); }
-
+        const reply = data.choices && data.choices[0] && data.choices[0].message || { role:'assistant', content:'(空响应)' };
+        history.push(reply);
+        saveHistory(currentBot, history);
+        bubble('assistant', typeof reply.content==='string'? reply.content : JSON.stringify(reply.content));
       }catch(err){
-        out.textContent = '错误：' + err.message;
-        reply.textContent = '错误：' + err.message;
-      }finally{
-        btn.disabled = false;
+        history.push({ role:'assistant', content: '调用失败：' + err.message });
+        saveHistory(currentBot, history);
+        bubble('assistant', '调用失败：' + err.message);
       }
+    }
+
+    const textarea = qs('#text');
+    textarea.addEventListener('keydown', e=>{
+      if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); }
     });
+    qs('#send').onclick = send;
+
+    renderBots();
+    renderChat();
   </script>
 </body>
 </html>
