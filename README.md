@@ -19,3 +19,9 @@
 ## 常见问题
 - “Missing POE_API_KEY” → 去 Vercel 配环境变量后 Redeploy。
 - 想切换你自己的智能体 → 改 `src/components/Chat.js` 的 `AGENTS` 列表或设置环境变量。
+
+
+## Vercel 构建失败常见原因
+- 请确保 `api/requirements.txt` 存在且包含 `openai` 依赖（已提供）。
+- Vercel 项目设置里把 Node.js 版本切到 18 或 20。
+- 如仍失败，在 Vercel 的 Build Logs 里展开错误详情把红字发我。
