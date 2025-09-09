@@ -30,7 +30,6 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         api_key = os.environ.get("POE_API_KEY")
-        default_model = os.environ.get("MODEL_ID", "gpt-4o")
         if not api_key:
             return self._send(500, {"error": "Missing POE_API_KEY"})
 
@@ -40,8 +39,6 @@ class handler(BaseHTTPRequestHandler):
             payload = json.loads(body.decode("utf-8"))
         except Exception:
             return self._send(400, {"error": "Invalid JSON body"})
-
-        model = (payload.get("model") or default_model).strip()
 
         # 允许两种形态：直接 messages，或 text + imageDataUrl
         messages = payload.get("messages")
@@ -67,7 +64,6 @@ class handler(BaseHTTPRequestHandler):
                 ]
 
         req_body = {
-            "model": model,
             "messages": messages,
             "temperature": 0.4
         }
