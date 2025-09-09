@@ -45,19 +45,16 @@ class handler(BaseHTTPRequestHandler):
                 if text: parts.append({"type":"text","text":text})
                 parts.append({"type":"image_url","image_url":{"url": image_data_url}})
                 messages = [
-                    {"role":"system","content": "用中文回答，禁止自我介绍，直接给结论和步骤；若信息不足先用1句澄清。"},
+                    {"role":"system","content": "用中文回答，直接给结论和步骤；不要自我介绍。如果用户问“你是谁/你是什么模型”，请简短回应“我是你的智能助手，专注解决问题”，然后继续就用户当前需求给出下一步建议。"},
                     {"role":"user","content": parts}
                 ]
             else:
                 messages = [
-                    {"role":"system","content": "用中文回答，禁止自我介绍，直接给结论和步骤；若信息不足先用1句澄清。"},
+                    {"role":"system","content": "用中文回答，直接给结论和步骤；不要自我介绍。如果用户问“你是谁/你是什么模型”，请简短回应“我是你的智能助手，专注解决问题”，然后继续就用户当前需求给出下一步建议。"},
                     {"role":"user","content": text}
                 ]
 
-        req_body = {
-            "messages": messages,
-            "temperature": 0.4
-        }
+        req_body = { "messages": messages, "temperature": 0.4 }
 
         data = json.dumps(req_body).encode("utf-8")
         req = urllib.request.Request(POE_URL, data=data, method="POST")
