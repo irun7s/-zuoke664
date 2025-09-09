@@ -1,10 +1,300 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <title>Poe Chat App</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>智能体对话中心 · Chat 风格</title>
+  <style>
+    :root{
+      --bg:#0f1115; --panel:#141821; --border:#232a36; --text:#e6edf3; --muted:#9aa4af;
+      --primary:#4f8eff; --accent:#1f6feb; --me:#1a2333; --asst:#101826; --code:#0b1020;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;line-height:1.55}
+    .app{display:grid;grid-template-columns:280px 1fr;height:100%}
+    .sidebar{display:flex;flex-direction:column;border-right:1px solid var(--border);background:var(--panel);min-height:0}
+    .side-top{padding:12px;border-bottom:1px solid var(--border);display:flex;gap:8px}
+    .btn{display:inline-flex;gap:6px;align-items:center;justify-content:center;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#0b0d12;color:var(--text);cursor:pointer;user-select:none}
+    .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .btn.flat{background:transparent}
+    .chats{flex:1;overflow:auto;padding:8px}
+    .chat-item{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid transparent;border-radius:10px;cursor:pointer}
+    .chat-item:hover{background:#0b0d12}
+    .chat-item.active{background:#0b0d12;border-color:var(--border)}
+    .title{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .side-bottom{border-top:1px solid var(--border);padding:10px;display:grid;gap:8px}
+    .danger{background:#ef44441a;color:#ffaaaa;border-color:#ef4444a0}
+    .main{display:flex;flex-direction:column;min-width:0}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5;background:var(--panel)}
+    .brand{font-weight:600}
+    .chat{flex:1;overflow:auto;padding:16px;scroll-behavior:smooth}
+    .row{display:flex;gap:10px;margin:10px 0}
+    .avatar{width:32px;height:32px;border-radius:50%;background:#253047;display:flex;align-items:center;justify-content:center;font-size:14px}
+    .bubble{flex:1;min-width:0;background:var(--asst);border:1px solid var(--border);border-radius:14px;padding:12px}
+    .me .bubble{background:var(--me)}
+    .meta{color:var(--muted);font-size:12px;margin-bottom:6px}
+    .bubble img{max-width:220px;border-radius:8px;border:1px solid var(--border);display:block;margin:6px 0}
+    .composer{position:sticky;bottom:0;border-top:1px solid var(--border);padding:12px;background:linear-gradient(180deg,transparent,rgba(15,17,21,.9) 20%,var(--bg) 40%)}
+    .composer-inner{display:flex;gap:8px;align-items:flex-end;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:10px}
+    .textarea{flex:1;min-height:44px;max-height:200px;overflow:auto;border:none;resize:none;outline:none;background:transparent;color:var(--text);font:inherit;line-height:1.55}
+    .hidden{display:none}
+    .badge{font-size:12px;color:#cbd5e1;background:#0b0d12;border:1px solid var(--border);padding:2px 8px;border-radius:999px}
+    code, pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;font-size:13px}
+    pre{background:var(--code);border:1px solid var(--border);padding:12px;border-radius:10px;overflow:auto}
+    .codebar{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+    .copy{cursor:pointer;border:1px solid var(--border);padding:4px 8px;border-radius:8px;background:#0b0d12;color:#cbd5e1;font-size:12px}
+    a{color:#8ab4ff}
+    @media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{display:none}}
+  </style>
 </head>
 <body>
-  <h1>前端页面请自行替换，这里主要提供 api/ask.py</h1>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="side-top">
+        <button id="newChat" class="btn primary">＋ 新建对话</button>
+        <button id="renameChat" class="btn">重命名</button>
+      </div>
+      <div id="chatList" class="chats"></div>
+      <div class="side-bottom">
+        <button id="exportBtn" class="btn">导出对话</button>
+        <label class="btn flat">
+          导入对话
+          <input type="file" id="importFile" accept="application/json" class="hidden">
+        </label>
+        <button id="deleteChat" class="btn danger">删除当前对话</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="brand">智能体对话中心 <span id="agentBadge" class="badge">默认智能体</span></div>
+        <div class="muted" id="chatMeta"></div>
+      </div>
+
+      <div id="chat" class="chat" aria-live="polite"></div>
+
+      <div class="composer">
+        <div class="composer-inner">
+          <textarea id="text" class="textarea" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
+          <input id="file" type="file" accept="image/*" class="hidden">
+          <button id="imgBtn" class="btn">🖼 图片</button>
+          <button id="send" class="btn primary">发送</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API_BASE = '/api';
+    const AGENTS = ['默认智能体','资料分析','产品策划','教学教案'];
+    const SYSTEM_TEXT = '用中文回答，直接给结论和步骤；不要自我介绍。如果用户问“你是谁/你是什么模型”，请简短回应“我是你的智能助手，专注解决问题”，然后继续就用户当前需求给出下一步建议。';
+
+    const DB_KEY = 'poe_chats_v2';
+    function uid(){ return Math.random().toString(36).slice(2,10); }
+    function now(){ return new Date().toISOString(); }
+
+    function loadDB(){ try{ return JSON.parse(localStorage.getItem(DB_KEY) || '{}'); } catch { return {}; } }
+    function saveDB(db){ localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+    function listChats(){ const db = loadDB(); return Object.values(db).sort((a,b)=>(b.updated||b.created).localeCompare(a.updated||a.created)); }
+    function getChat(id){ return loadDB()[id] || null; }
+    function putChat(chat){ const db = loadDB(); db[chat.id] = chat; saveDB(db); }
+    function delChat(id){ const db = loadDB(); delete db[id]; saveDB(db); }
+
+    let currentId = localStorage.getItem('current_chat');
+    if(!currentId){
+      const c = { id: uid(), title:'新的对话', agent: AGENTS[0], created: now(), updated: now(), messages: [] };
+      putChat(c); currentId = c.id; localStorage.setItem('current_chat', currentId);
+    }
+
+    const chatListEl = document.getElementById('chatList');
+    function renderChatList(){
+      chatListEl.innerHTML = '';
+      listChats().forEach(c=>{
+        const row = document.createElement('div');
+        row.className = 'chat-item'+(c.id===currentId?' active':'');
+        row.onclick = ()=>{ currentId = c.id; localStorage.setItem('current_chat', currentId); renderAll(); };
+        const icon = document.createElement('div'); icon.className='avatar'; icon.textContent='💬';
+        const title = document.createElement('div'); title.className='title'; title.textContent = c.title || '(未命名)';
+        row.append(icon, title);
+        chatListEl.append(row);
+      });
+    }
+
+    function escapeHtml(s){ return s.replace(/[&<>"]/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m])); }
+    function renderMarkdown(md){
+      md = md.replace(/
+/g,'
+');
+      const codeBlocks = [];
+      md = md.replace(/```([\w-]*)
+([\s\S]*?)```/g, function(_,lang,code){
+        const i = codeBlocks.push({lang,code})-1; return '\uE000CODE'+i+'\uE000';
+      });
+      md = md.replace(/`([^`]+)`/g, function(_,c){ return '<code>'+escapeHtml(c)+'</code>'; });
+      md = md.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\*([^*]+)\*/g, '<em>$1</em>').replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+      md = md.split('
+').map(function(line){
+        if (/^\s*[-*]\s+/.test(line)) return '<li>'+escapeHtml(line.replace(/^\s*[-*]\s+/,''))+'</li>';
+        return '<p>'+escapeHtml(line)+'</p>';
+      }).join('');
+      md = md.replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>');
+      md = md.replace(/CODE(\d+)/g, function(_,i){
+        var b = codeBlocks[Number(i)]; var escaped = escapeHtml(b.code);
+        return '<div class="codebar"><span>'+(b.lang||'code')+'</span><button class="copy" data-idx="'+i+'">复制</button></div><pre><code>'+escaped+'</code></pre>';
+      });
+      return md;
+    }
+    function hookCopyButtons(container){
+      container.querySelectorAll('.copy').forEach(function(btn){
+        btn.onclick = function(){
+          var i = Number(btn.dataset.idx);
+          var code = document.querySelectorAll('pre code')[i];
+          navigator.clipboard.writeText(code.innerText);
+          btn.textContent = '已复制'; setTimeout(function(){ btn.textContent='复制'; },1000);
+        };
+      });
+    }
+
+    const chatEl = document.getElementById('chat');
+    const badgeEl = document.getElementById('agentBadge');
+    const metaEl = document.getElementById('chatMeta');
+
+    function renderChat(){
+      const c = getChat(currentId);
+      chatEl.innerHTML = '';
+      badgeEl.textContent = c.agent || AGENTS[0];
+      metaEl.textContent = new Date(c.updated||c.created).toLocaleString();
+
+      c.messages.forEach(function(m){
+        const row = document.createElement('div');
+        row.className = 'row '+(m.role==='user'?'me':'asst');
+        const avatar = document.createElement('div');
+        avatar.className = 'avatar';
+        avatar.textContent = m.role==='user' ? '🧑' : '🤖';
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+
+        if (m.role === 'user'){
+          if (Array.isArray(m.content)){
+            const t = m.content.find(function(p){return p.type==='text';})?.text || '';
+            const img = m.content.find(function(p){return p.type==='image_url';})?.image_url?.url;
+            bubble.innerHTML = '<div class="meta">你</div>' + (t? '<div>'+escapeHtml(t)+'</div>':'' ) + (img? '<img src="'+img+'" alt="image">' : '');
+          } else {
+            bubble.innerHTML = '<div class="meta">你</div><div>'+escapeHtml(m.content||'')+'</div>';
+          }
+        } else {
+          var text = '';
+          if (typeof m.content === 'string') text = m.content; else if (Array.isArray(m.content)) text = m.content.map(function(p){return p.type==='text'?p.text:'';}).join('
+');
+          bubble.innerHTML = '<div class="meta">助手</div>' + renderMarkdown(text || '');
+        }
+
+        row.append(avatar, bubble);
+        chatEl.append(row);
+      });
+
+      hookCopyButtons(chatEl);
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    function renderAll(){ renderChatList(); renderChat(); }
+
+    async function toDataUrl(file){
+      return new Promise(function(ok,no){ var r=new FileReader(); r.onerror=no; r.onload=function(){ ok(r.result); }; r.readAsDataURL(file); });
+    }
+
+    async function send(){
+      const t = document.getElementById('text');
+      const f = document.getElementById('file');
+      const text = t.value.trim();
+      const file = f.files[0];
+      if (!text && !file){ t.focus(); return; }
+
+      const chat = getChat(currentId);
+      if (!chat.messages.length){
+        chat.messages.push({ role:'system', content: SYSTEM_TEXT });
+      }
+
+      let userContent = text;
+      if (file){
+        const url = await toDataUrl(file);
+        userContent = [{ type:'text', text: text || '看图说话' }, { type:'image_url', image_url:{ url } }];
+      }
+
+      chat.messages.push({ role:'user', content: userContent });
+      chat.updated = now(); putChat(chat);
+      t.value=''; f.value='';
+      renderChat();
+
+      try{
+        const res = await fetch(API_BASE + '/ask', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ messages: chat.messages })
+        });
+        const data = await res.json();
+        const msg = (data && data.choices && data.choices[0] && data.choices[0].message) || { role:'assistant', content:'(空响应)' };
+        let content = '';
+        if (typeof msg.content === 'string') content = msg.content; else if (Array.isArray(msg.content)) content = msg.content.map(function(p){return p.type==='text'?p.text:'';}).join('
+');
+        const finalMsg = { role:'assistant', content: content || '我已收到。请继续你的具体目标或素材。' };
+
+        chat.messages.push(finalMsg);
+        chat.updated = now(); putChat(chat);
+        renderChat();
+      } catch(err){
+        chat.messages.push({ role:'assistant', content: '调用失败：' + err.message });
+        chat.updated = now(); putChat(chat);
+        renderChat();
+      }
+    }
+
+    document.getElementById('send').onclick = send;
+    document.getElementById('imgBtn').onclick = function(){ document.getElementById('file').click(); };
+    const ta = document.getElementById('text');
+    ta.addEventListener('keydown', function(e){
+      if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); }
+    });
+
+    document.getElementById('newChat').onclick = function(){
+      const c = { id: uid(), title:'新的对话', agent: AGENTS[0], created: now(), updated: now(), messages: [] };
+      putChat(c); currentId = c.id; localStorage.setItem('current_chat', currentId); renderAll();
+    };
+    document.getElementById('renameChat').onclick = function(){
+      const c = getChat(currentId); if (!c) return;
+      const name = prompt('重命名对话：', c.title || '');
+      if (name!=null){ c.title = name.trim() || c.title; c.updated = now(); putChat(c); renderAll(); }
+    };
+    document.getElementById('deleteChat').onclick = function(){
+      if (!confirm('确定删除当前对话吗？此操作不可恢复。')) return;
+      delChat(currentId);
+      const list = listChats();
+      if (list.length){ currentId = list[0].id; } else {
+        const c = { id: uid(), title:'新的对话', agent: AGENTS[0], created: now(), updated: now(), messages: [] };
+        putChat(c); currentId = c.id;
+      }
+      localStorage.setItem('current_chat', currentId);
+      renderAll();
+    };
+
+    document.getElementById('exportBtn').onclick = function(){
+      const blob = new Blob([localStorage.getItem(DB_KEY) || '{}'], {type:'application/json'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'chats.json'; a.click();
+    };
+    document.getElementById('importFile').onchange = async function(e){
+      const file = e.target.files[0]; if (!file) return;
+      const text = await file.text();
+      try{
+        const obj = JSON.parse(text);
+        localStorage.setItem(DB_KEY, JSON.stringify(obj));
+        const ids = Object.keys(obj);
+        if (ids.length){ currentId = ids[0]; localStorage.setItem('current_chat', currentId); }
+        renderAll();
+      }catch(err){ alert('导入失败：' + err.message); }
+      e.target.value = '';
+    };
+
+    renderAll();
+  </script>
 </body>
 </html>
