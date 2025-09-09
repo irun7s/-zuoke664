@@ -1,85 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Poe Chat App</title>
-  <style>
-    body{background:#0f1115;color:#e6edf3;font-family:sans-serif;margin:0;padding:0}
-    .composer{position:fixed;bottom:0;width:100%;background:#141821;padding:12px;display:flex;gap:8px}
-    .textarea{flex:1;min-height:44px;max-height:200px;overflow:auto;border:none;outline:none;background:#0f1115;color:#e6edf3;padding:8px;border-radius:6px}
-    .btn{padding:8px 14px;border:none;border-radius:6px;cursor:pointer}
-    .btn.primary{background:#4f8eff;color:#fff}
-    .file-hidden{opacity:0;position:absolute;left:-9999px;width:0;height:0}
-  </style>
-</head>
-<body>
-  <div id="chat"></div>
-  <div class="composer">
-    <textarea id="text" class="textarea" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
-    <input id="file" type="file" accept="image/*" class="file-hidden">
-    <button id="imgBtn" class="btn">🖼 图片</button>
-    <button id="send" class="btn primary">发送</button>
-  </div>
-
-  <script>
-    const API_BASE = '/api';
-    const DEFAULT_MODEL = 'sml-fanhuati.XUANTI';
-
-    async function toDataUrl(file){
-      return new Promise((ok,no)=>{
-        const r=new FileReader();
-        r.onerror=no;
-        r.onload=()=>ok(r.result);
-        r.readAsDataURL(file);
-      });
-    }
-
-    async function send(){
-      const t = document.getElementById('text');
-      const f = document.getElementById('file');
-      const text = t.value.trim();
-      const file = f.files[0];
-      if (!text && !file){ t.focus(); return; }
-
-      let userContent = text;
-      if (file){
-        const url = await toDataUrl(file);
-        userContent = [
-          { type:'text', text: text || '看图说话' },
-          { type:'image_url', image_url:{ url } }
-        ];
-      }
-
-      try{
-        const res = await fetch(API_BASE + '/ask', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({
-            model: DEFAULT_MODEL,
-            messages: [{ role:'user', content: userContent }]
-          })
-        });
-        const data = await res.json();
-        console.log('响应:', data);
-        const chatDiv = document.getElementById('chat');
-        chatDiv.innerHTML += '<div><b>我:</b> '+(typeof userContent==='string'?userContent:'[图文消息]')+'</div>';
-        chatDiv.innerHTML += '<div><b>助手:</b> '+(data?.choices?.[0]?.message?.content || '(无响应)')+'</div>';
-        chatDiv.scrollTop = chatDiv.scrollHeight;
-      } catch(err){
-        console.error('调用失败：', err);
-      }
-
-      t.value=''; f.value='';
-    }
-
-    document.getElementById('send').onclick = send;
-    document.getElementById('imgBtn').onclick = ()=>{ document.getElementById('file').click(); };
-    const ta = document.getElementById('text');
-    ta.addEventListener('keydown', function(e){
-      if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); }
-    });
-    window.send = send;
-  </script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ChatGPT风格智能体</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/index.js"></script>
+  </body>
 </html>
